@@ -19,11 +19,9 @@ Achieved a **24% improvement in Fix Accuracy (Pass@1)** compared to the base mod
 ## 📊 Performance Benchmarks
 | Metric | Base Qwen 2.5 Coder | CodeSensei (Fine-Tuned) | Lift |
 | :--- | :---: | :---: | :---: |
-| **Pass@1 (Syntax Fix)** | 62% | **88%** | 🔺 +26% |
-| **Trace Alignment** | 45% | **92%** | 🔺 +47% |
-| **Hallucination Rate** | 18% | **4%** | 🔻 -14% |
-
-*Note: "Trace Alignment" measures how accurately the model cites the specific line number mentioned in the stack trace.*
+| **Pass@1 (Execution)** | 67% | **73%** | 🔺 +6% |
+| **Runtime Error Rate** | 23% | **20%** | 🔻 -3% |
+| **Timeout Rate** | 0% | **1%** | 🔺 +1% |
 
 ## ⚡ Quick Start
 ### 1. Installation
@@ -31,3 +29,13 @@ Clone the repo and install dependencies:
 ```bash
 git clone [https://github.com/yourname/CodeSensei.git](https://github.com/yourname/CodeSensei.git)
 pip install -r requirements.txt
+```
+
+### 2. Model Setup (Required)
+Before using the app, you need the fine-tuned model in Ollama:
+1. Install and run **Ollama** on your machine.
+2. Open the fine-tuning notebook in **Google Colab**: `finetuning/CodeSensei_fineTuned (4).ipynb`.
+3. Run all cells to produce the fine-tuned model artifacts.
+4. Save the model into Ollama and name it **`codesensei`**.
+
+Once done, you can run the Streamlit app or benchmark with the fine-tuned model.
