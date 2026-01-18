@@ -205,3 +205,10 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Local benchmark stub
+evaluation/benchmark3.py
+
+chroma
+MyModel/qwen2.5-coder-1.5b-instruct.Q4_K_M.gguf
+

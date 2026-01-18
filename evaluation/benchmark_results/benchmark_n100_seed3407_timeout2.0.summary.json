@@ -1,0 +1,24 @@
+{
+  "config": {
+    "models": [
+      "qwen2.5-coder:1.5b",
+      "codesensei"
+    ],
+    "n": 100,
+    "seed": 3407,
+    "timeout_s": 2.0
+  },
+  "metrics": {
+    "base": {
+      "pass@1": 0.67,
+      "runtime_error_rate": 0.23,
+      "timeout_rate": 0.0
+    },
+    "codesensei": {
+      "pass@1": 0.73,
+      "runtime_error_rate": 0.2,
+      "timeout_rate": 0.01
+    }
+  },
+  "failure_examples": []
+}

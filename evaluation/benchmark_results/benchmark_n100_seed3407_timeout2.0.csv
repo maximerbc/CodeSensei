@@ -1,0 +1,2 @@
+id,problem_id,buggy_code,error_trace,input,expected_output,has_expected_output,base_ok,base_stdout,base_stderr,base_timed_out,base_runtime_error,base_empty_output,base_stderr_present,base_output_len,base_exit_code,base_generated_code,codesensei_ok,codesensei_stdout,codesensei_stderr,codesensei_timed_out,codesensei_runtime_error,codesensei_empty_output,codesensei_stderr_present,codesensei_output_len,codesensei_exit_code,codesensei_generated_code
+0,placeholder,,,,,False,True,,,False,False,True,False,0,0,,True,,,False,False,True,False,0,0,

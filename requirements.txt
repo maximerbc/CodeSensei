@@ -1,0 +1,26 @@
+# Core LangChain ecosystem
+langchain
+langchain-core
+langchain-community
+langchain-openai
+langchain-text-splitters
+langchain-chroma
+langchain-ollama
+
+# Vector store backend
+chromadb
+
+# PDF loading
+pypdf
+
+#UI
+streamlit
+
+# Benchmarking
+datasets
+numpy
+pandas
+tqdm
+
+# Environment variable management
+python-dotenv

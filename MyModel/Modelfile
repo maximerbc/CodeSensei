@@ -1,0 +1,23 @@
+# Point to your GGUF file
+FROM ./Qwen2.5-Coder-1.5B-Instruct.Q4_K_M.gguf
+
+# Set the Qwen Chat Template (Critical for it to understand turns)
+TEMPLATE """{{ if .System }}<|im_start|>system
+{{ .System }}<|im_end|>
+{{ end }}{{ if .Prompt }}<|im_start|>user
+{{ .Prompt }}<|im_end|>
+{{ end }}<|im_start|>assistant
+"""
+
+
+PARAMETER num_ctx 8192
+PARAMETER num_predict 2048
+PARAMETER temperature 0
+
+# Force the model to stop when it sees these tokens
+PARAMETER stop "</s>"
+PARAMETER stop "<|im_end|>"
+PARAMETER stop "<|endoftext|>"
+
+# System prompt
+SYSTEM "You are a helpful coding assistant that fixes Python code from stack traces."
