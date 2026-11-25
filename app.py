@@ -1,6 +1,4 @@
-import re
 import subprocess
-import ast
 import json
 from pathlib import Path
 import pandas as pd
@@ -12,6 +10,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_ollama import ChatOllama
 
 from rag.get_embedding_function import get_embedding_function
+from code_quality import extract_code_from_response, evaluate_code_quality
 
 # Load environment
 load_dotenv()
@@ -19,12 +18,12 @@ load_dotenv()
 CHROMA_PATH = str(Path(__file__).resolve().parent / "chroma")
 
 # --- CODESENSEI PROMPT TEMPLATE ---
-# Specialized to force the model to look at the docs AND the specific error trace.
+# Supply retrieved reference material alongside code and error information.
 PROMPT_TEMPLATE = """
 You are a helpful coding assistant, specialized in Python debugging.
 Use the following Python documentation to fix the Python program using the error trace when available.
 
-### OFFICIAL DOCUMENTATION (Reference):
+### RETRIEVED PYTHON REFERENCES (official documentation and third-party guides):
 {context}
 
 ---
@@ -53,7 +52,7 @@ def get_db():
 @st.cache_resource
 def get_llm(model_name: str):
     """Load the Ollama model once and reuse it."""
-    # Using temperature=0 for debugging to ensure reproducibility
+    # Use temperature=0 to reduce sampling variability.
     return ChatOllama(model=model_name, temperature=0)
 
 
@@ -76,7 +75,11 @@ def get_ollama_models():
 
 def build_prompt_and_context(results, code_input: str, log_input: str):
     # Combine retrieved docs into a single string
-    context_text = "\n\n---\n\n".join([doc.page_content for doc, _ in results])
+    context_text = "\n\n---\n\n".join(
+        f"Source: {doc.metadata.get('source', 'unknown')} "
+        f"(page index {doc.metadata.get('page', 'unknown')})\n{doc.page_content}"
+        for doc, _ in results
+    )
     
     # Format the strict template
     prompt = ChatPromptTemplate.from_template(PROMPT_TEMPLATE).format(
@@ -87,64 +90,14 @@ def build_prompt_and_context(results, code_input: str, log_input: str):
     return prompt, context_text
 
 
-def extract_code_from_response(response_text: str) -> str:
-    """Extracts Python code blocks or returns the full text if it looks like raw code."""
-    # Pattern to find markdown code blocks
-    code_pattern = r"```python\s+(.*?)\s+```"
-    match = re.search(code_pattern, response_text, re.DOTALL)
-    if match:
-        return match.group(1)
-    
-    # Fallback: If no markdown formatting, assume the whole response might be code 
-    # (Common for fine-tuned specialist models)
-    if "def " in response_text or "import " in response_text:
-        return response_text
-    return ""
-
-
-def evaluate_code_quality(response_text: str) -> dict:
-    """
-    Evaluates the response based on:
-    1. Syntax Validity (Does it compile?)
-    2. Code Density (Is it concise?)
-    """
-    code = extract_code_from_response(response_text)
-    
-    score = 0.0
-    metrics = {"syntax": "❌", "density": 0.0}
-
-    if not code.strip():
-        return 0.0, metrics # No code found
-
-    # 1. Syntax Check (The most important part)
-    try:
-        ast.parse(code)
-        metrics["syntax"] = "✅ Valid"
-        score += 0.6  # Base score for writing valid Python
-    except SyntaxError:
-        metrics["syntax"] = "⚠️ Error"
-        score += 0.0
-
-    # 2. Code Density (Reward for not chatting)
-    # Calculate ratio of code characters to total characters
-    code_len = len(code)
-    total_len = len(response_text)
-    density = code_len / total_len if total_len > 0 else 0
-    metrics["density"] = round(density, 2)
-    
-    # Add density to score (Higher density = Higher score for a specialist)
-    score += (density * 0.4)
-
-    return round(score, 2), metrics
-
 def main():
     st.set_page_config(page_title="CodeSensei Debugger", layout="wide")
     
     # Header
-    st.title("🥋 CodeSensei: Multi-Modal Debugging Arena")
+    st.title("CodeSensei: Python Debugging Assistant")
     st.markdown("""
-    Compare the **Base Model** vs. **CodeSensei (Fine-Tuned)**.
-    CodeSensei reads both the code and the stack trace, augmented with Python documentation RAG.
+    Explore suggested fixes from installed Ollama models using code, error traces,
+    and retrieved Python references. No repair-quality improvement has been established.
     """)
 
     tab_debugger, tab_benchmark = st.tabs(["Debugger", "Benchmark"])
@@ -153,7 +106,7 @@ def main():
         # --- SIDEBAR CONFIG ---
         available_models = get_ollama_models()
         
-        # Defaults tailored for your project
+        # Prefer the base and fine-tuned models when installed.
         default_models = ["qwen2.5-coder:1.5b", "codesensei"]
         
         # Filter defaults to only what is actually installed
@@ -169,6 +122,9 @@ def main():
         )
         
         k = st.sidebar.slider("RAG Retrieval Depth (k)", min_value=1, max_value=5, value=3)
+
+        if not available_models:
+            st.info("No Ollama models found. Start Ollama and install a model; see the README.")
 
         # --- MAIN INPUT AREA (Split View) ---
         col1, col2 = st.columns(2)
@@ -192,11 +148,13 @@ def main():
             )
 
         # --- EXECUTION BUTTON ---
-        if st.button("🔍 Diagnose & Fix Bug", type="primary"):
-            if not code_input.strip() or not log_input.strip():
+        if st.button("🔍 Suggest a Fix", type="primary"):
+            if not models_to_compare:
+                st.error("Select an installed Ollama model first.")
+            elif not code_input.strip() or not log_input.strip():
                 st.error("Please provide BOTH the buggy code and the error log.")
             else:
-                with st.spinner("🧠 Retrieving Python Docs & Generating Fixes..."):
+                with st.spinner("🧠 Retrieving Python References & Generating Suggestions..."):
                     
                     # 1. RAG Search
                     # We combine code + log for the search query to find relevant docs
@@ -214,8 +172,7 @@ def main():
                             response = llm.invoke(prompt)
                             answer_text = response.content
                             
-                            # --- NEW SCORING LOGIC ---
-                            # Instead of text overlap, we measure Code Validity & Density
+                            # This heuristic does not test whether the bug was fixed.
                             final_score, metrics = evaluate_code_quality(answer_text)
                             
                             model_outputs.append((model_name, answer_text, final_score, metrics))
@@ -233,6 +190,8 @@ def main():
 
                 # Display Model Comparison
                 st.subheader("Model Comparison")
+                st.caption("Syntax and formatting heuristic: 60% syntax validity + 40% code density. "
+                           "No code is executed here; this does not measure correctness or efficiency.")
                 
                 if not model_outputs:
                     st.info("No models selected.")
@@ -240,9 +199,9 @@ def main():
                     cols = st.columns(len(model_outputs))
                     for col, (model_name, answer_text, score, metrics) in zip(cols, model_outputs):
                         with col:
-                            # Header with the new Efficiency Score
+                            # Report the heuristic separately from the generated suggestion.
                             st.markdown(f"### 🤖 {model_name}")
-                            st.markdown(f"**Code Efficiency Score: {score}/1.0**")
+                            st.markdown(f"**Syntax and formatting heuristic: {score}/1.0**")
                             st.caption(f"Syntax: {metrics['syntax']} | Code Density: {metrics['density']}")
                             
                             st.divider()
@@ -257,7 +216,11 @@ def main():
 
     with tab_benchmark:
         st.subheader("Benchmark")
-        st.markdown("Run the execution-based benchmark on a held-out BugNet test split.")
+        st.markdown("Experimental execution benchmark without RAG. The split differs from the training notebook; "
+                    "training/test independence is not established. No validated comparative results are included.")
+
+        st.warning("This benchmark runs generated Python locally with time/resource limits, "
+                   "not in an isolated sandbox. It requires both configured Ollama models.")
 
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -276,7 +239,7 @@ def main():
             st.session_state["benchmark_from_cache"] = False
 
         if run_clicked:
-            from evaluation.benchmark3 import run_benchmark, RESULTS_DIR, results_paths
+            from evaluation.benchmark2 import run_benchmark, RESULTS_DIR, results_paths
 
             progress = st.progress(0, text="Running benchmark...")
             status = st.empty()

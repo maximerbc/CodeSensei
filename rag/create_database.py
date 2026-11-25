@@ -6,7 +6,6 @@ from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 
-# Assuming you have this file in the same directory
 from rag.get_embedding_function import get_embedding_function
 from langchain_chroma import Chroma
 
@@ -21,20 +20,10 @@ def load_documents():
 
 
 def split_documents(documents: list[Document]):
-    """
-    CodeSensei Adaptation:
-    We modify the separators to prioritize 'class ' and 'exception '.
-    This forces the chunk to start exactly where a new Python error is defined.
-    """
+    """Split references with class/exception boundaries preferred where available."""
     text_splitter = RecursiveCharacterTextSplitter(
-        # ---------------------------------------------------------
-        # THE "CODESENSEI" CHANGE IS HERE:
-        # We put "class " first. The splitter checks these in order.
-        # It means: "Split here if you see 'class ', otherwise try 'exception ', etc."
         separators=["class ", "exception ", "\n\n", "\n", " ", ""],
-        # ---------------------------------------------------------
-        
-        chunk_size=1000, # Reduced size to keep chunks focused on one error type
+        chunk_size=1000,
         chunk_overlap=200,
         length_function=len,
         is_separator_regex=False,
@@ -95,7 +84,7 @@ def building_chunk_ids(chunks):
 
 def main():
 
-    # Check if the database should be cleared (using the --clear flag).
+    # Check if the database should be cleared (using the --reset flag).
     parser = argparse.ArgumentParser()
     parser.add_argument("--reset", action="store_true", help="Reset the database.")
     args = parser.parse_args()

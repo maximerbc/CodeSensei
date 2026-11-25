@@ -1,7 +1,7 @@
 # Point to your GGUF file
-FROM ./Qwen2.5-Coder-1.5B-Instruct.Q4_K_M.gguf
+FROM ./qwen2.5-coder-1.5b-instruct.Q4_K_M.gguf
 
-# Set the Qwen Chat Template (Critical for it to understand turns)
+# Qwen chat template
 TEMPLATE """{{ if .System }}<|im_start|>system
 {{ .System }}<|im_end|>
 {{ end }}{{ if .Prompt }}<|im_start|>user

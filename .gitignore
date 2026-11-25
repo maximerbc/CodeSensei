@@ -206,9 +206,13 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-# Local benchmark stub
-evaluation/benchmark3.py
-
 chroma
 MyModel/qwen2.5-coder-1.5b-instruct.Q4_K_M.gguf
 
+
+# Local operating-system files and generated model artifacts
+.DS_Store
+*.gguf
+
+# Local benchmark outputs (no validated results are shipped)
+evaluation/benchmark_results/

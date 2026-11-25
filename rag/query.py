@@ -1,5 +1,4 @@
 import argparse
-import os
 from pathlib import Path
 from langchain_chroma import Chroma
 from langchain_core.prompts import ChatPromptTemplate
@@ -11,12 +10,12 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 CHROMA_PATH = str(BASE_DIR / "chroma")
 
 # --- CODESENSEI PROMPT ---
-# We frame the RAG context as "Official Python Documentation" to ground the model.
+# Retrieved references include official documentation and third-party guides.
 PROMPT_TEMPLATE = """
 You are a helpful coding assistant that fixes Python code from stack traces. 
 Use the following Python documentation to analyze the error and provide a fix.
 
-### OFFICIAL DOCUMENTATION (Reference):
+### RETRIEVED PYTHON REFERENCES (official documentation and third-party guides):
 {context}
 
 ---
@@ -29,13 +28,13 @@ Use the following Python documentation to analyze the error and provide a fix.
 """
 
 def main():
-    # Create CLI with support for Files (Real Engineering Workflow)
+    # Accept either a query or a code/log file pair.
     parser = argparse.ArgumentParser()
     
-    # Option 1: Direct text input (like your old project)
+    # Direct text input.
     parser.add_argument("--query", type=str, help="Direct query text.", default=None)
     
-    # Option 2: File input (The "Internship Killer" feature)
+    # Code and error-log files.
     parser.add_argument("--file", type=str, help="Path to the buggy python file.", default=None)
     parser.add_argument("--log", type=str, help="Path to the error log file.", default=None)
     
@@ -76,7 +75,11 @@ def query_rag(query_text: str, model_name: str):
     # Note: For debugging, the "Error Trace" usually contains the keywords we need (e.g., "IndexError")
     results = db.similarity_search_with_score(query_text, k=3)
 
-    context_text = "\n\n---\n\n".join([doc.page_content for doc, _score in results])
+    context_text = "\n\n---\n\n".join(
+        f"Source: {doc.metadata.get('source', 'unknown')} "
+        f"(page index {doc.metadata.get('page', 'unknown')})\n{doc.page_content}"
+        for doc, _score in results
+    )
     prompt_template = ChatPromptTemplate.from_template(PROMPT_TEMPLATE)
     prompt = prompt_template.format(context=context_text, question=query_text)
 
@@ -98,7 +101,7 @@ def query_rag(query_text: str, model_name: str):
         print(f" - {src}")
     print("="*50 + "\n")
     
-    print(f"💡 DIAGNOSIS & FIX:\n{response_text}")
+    print(f"💡 SUGGESTED FIX:\n{response_text}")
     
     return response_text
 
